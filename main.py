@@ -79,6 +79,27 @@ async def receive_message(request: Request):
         print(f"Error procesando webhook: {e}")
         return {"status": "error"}
 
+from pydantic import BaseModel
+from typing import Optional
+
+class ChatRequest(BaseModel):
+    phone_number: str
+    message: str
+    image_url: Optional[str] = None
+
+@app.post("/api/chat")
+async def wacrm_chat(request: ChatRequest):
+    """
+    Este endpoint convierte al Agente en un Microservicio.
+    WACRM puede enviar una petición POST aquí y el Agente devolverá la respuesta inteligente.
+    """
+    print(f"\n[WACRM SOLICITUD] De: {request.phone_number} | Texto: {request.message}")
+    
+    # Procesar con Gemini
+    bot_response = agent.process_message(request.phone_number, request.message)
+    
+    return {"status": "success", "response": bot_response}
+
 if __name__ == "__main__":
     import uvicorn
     # Corre el servidor en el puerto 8000
