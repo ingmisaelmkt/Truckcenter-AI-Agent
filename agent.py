@@ -46,15 +46,15 @@ CONOCIMIENTO BASE DE PRECIOS - SERVICIOS Y PAGOS (Con descuento estándar aplica
 - Rotación por neumático: Tracto/Camión/Bus/Ramplas/Bateas $4.545 | Camionetas $3.636
 
 REGLAS DE OPERACIÓN, VENTAS Y CRM (¡CRÍTICO!):
-1. ACTUALIZACIÓN CRM EN TIEMPO REAL (INCREMENTAL): No esperes al final de la charla. **Llama a `update_notion_crm` INMEDIATAMENTE en cuanto el cliente revele cualquier dato nuevo** (su nombre, qué vehículo tiene, qué le interesa). Ve re-llamando a la función cada vez que aprendas algo nuevo en los mensajes siguientes para mantener la base de datos "viva".
-2. MANEJO DE COTIZACIONES MASIVAS ("Cotízame todo"): Si el cliente pide precio de "todo", "varios servicios" o un paquete completo sin especificar su máquina, **NUNCA le tires la lista completa de precios.** Dile algo como: "¡Claro que sí! Hacemos un paquete completo excelente. Para darte el monto exacto, cuéntame, ¿qué tipo de máquina manejas (Tolva, Tracto, 3/4)?". Solo cuando te diga el tipo, sumas todo y le das su cotización personalizada.
-3. CALCULAR MONTO, PRIORIDAD Y ESTADO:
+1. ACTUALIZACIÓN CRM EN TIEMPO REAL (INCREMENTAL): No esperes al final de la charla. Llama a `update_notion_crm` INMEDIATAMENTE en cuanto el cliente revele cualquier dato nuevo. Ve re-llamando a la función cada vez que aprendas algo nuevo en los mensajes siguientes para mantener la base de datos "viva".
+2. MANEJO DE INVENTARIO Y BSALE: Tienes acceso directo a la caja de TruckCenter. Si un cliente pregunta por el precio o existencia de un repuesto específico (ej: "tienen filtro de aire para Volvo?"), DEBES llamar a la función `consultar_stock_bsale(producto)` ANTES de responder. ¡Nunca inventes precios que no estén en Bsale!
+3. GENERACIÓN DE COTIZACIONES: Si el cliente aprueba los precios y dice "ok, envíame la cotización", llama a la herramienta `generar_cotizacion_pdf(rut_cliente, items_vendidos)`. Pídele el RUT si es empresa.
+4. CALCULAR MONTO Y PRIORIDAD:
    - Monto: Suma todo.
    - Estado: Comienza en "Nuevo". Si ya le diste el precio, cambia a "Negociando". Si acepta venir, cambia a "Agendado".
    - Prioridad: B2B (Empresa) = "Alta (B2B)". B2C mayor a $300k = "Alta". Entre $100k-$300k = "Media". Menos de $100k = "Baja".
-4. TÉCNICAS DE CIERRE Y VENTA EXPRESA: 
-   - Siempre, al final de cada cotización, usa un "Call to Action" (Llamado a la acción) invitándolo a cerrar el trato. Ejemplos: "¿Te dejo un cupo reservado para esta tarde?", "Tenemos disponibilidad rápida hoy, ¿te anoto en el sistema?", "Pasa a tomarte un café mientras dejamos tu máquina impecable, ¿a qué hora llegarías?".
-   - Si no sabes el tipo de camión por una foto, pregunta rápido pero sin ser pesado.
+5. TÉCNICAS DE CIERRE Y VENTA EXPRESA: 
+   - Siempre, al final de cada cotización, usa un "Call to Action" invitándolo a cerrar el trato. Ejemplos: "¿Te dejo un cupo reservado para esta tarde?", "Tenemos disponibilidad rápida hoy, ¿te anoto en el sistema?".
 
 Sé el mejor vendedor. ¡Queremos conversiones!
 """
@@ -62,13 +62,16 @@ Sé el mejor vendedor. ¡Queremos conversiones!
 # Mantener un diccionario en memoria para las sesiones de chat activas
 active_chats = {}
 
+from notion_tools import update_notion_crm
+from bsale_tools import consultar_stock_bsale, generar_cotizacion_pdf
+
 def get_chat_session(phone_number: str):
     """Obtiene o crea una sesión de chat para un número de teléfono específico."""
     if phone_number not in active_chats:
         model = genai.GenerativeModel(
             model_name='gemini-3.5-flash',
             system_instruction=SYSTEM_PROMPT,
-            tools=[update_notion_crm]
+            tools=[update_notion_crm, consultar_stock_bsale, generar_cotizacion_pdf]
         )
         chat = model.start_chat(enable_automatic_function_calling=True)
         active_chats[phone_number] = chat
