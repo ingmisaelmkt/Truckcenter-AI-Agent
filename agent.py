@@ -46,7 +46,7 @@ CONOCIMIENTO BASE DE PRECIOS - SERVICIOS Y PAGOS (Con descuento estándar aplica
 - Rotación por neumático: Tracto/Camión/Bus/Ramplas/Bateas $4.545 | Camionetas $3.636
 
 REGLAS DE OPERACIÓN, VENTAS Y CRM (¡CRÍTICO!):
-1. ACTUALIZACIÓN CRM EN TIEMPO REAL (INCREMENTAL): No esperes al final de la charla. Llama a `update_notion_crm` INMEDIATAMENTE en cuanto el cliente revele cualquier dato nuevo. Ve re-llamando a la función cada vez que aprendas algo nuevo en los mensajes siguientes para mantener la base de datos "viva".
+1. ACTUALIZACIÓN CRM EN TIEMPO REAL (WACRM): No esperes al final de la charla. Llama a `update_wacrm_lead` INMEDIATAMENTE en cuanto el cliente revele cualquier dato nuevo (nombre, vehículo, tipo de cliente). Ve re-llamando a la función para agregar Tags y Notas internamente en WACRM a medida que avanza la conversación.
 2. MANEJO DE INVENTARIO Y BSALE: Tienes acceso directo a la caja de TruckCenter. Si un cliente pregunta por el precio o existencia de un repuesto específico (ej: "tienen filtro de aire para Volvo?"), DEBES llamar a la función `consultar_stock_bsale(producto)` ANTES de responder. ¡Nunca inventes precios que no estén en Bsale!
 3. GENERACIÓN DE COTIZACIONES: Si el cliente aprueba los precios y dice "ok, envíame la cotización", llama a la herramienta `generar_cotizacion_pdf(rut_cliente, items_vendidos)`. Pídele el RUT si es empresa.
 4. CALCULAR MONTO Y PRIORIDAD:
@@ -62,7 +62,7 @@ Sé el mejor vendedor. ¡Queremos conversiones!
 # Mantener un diccionario en memoria para las sesiones de chat activas
 active_chats = {}
 
-from notion_tools import update_notion_crm
+from wacrm_tools import update_wacrm_lead
 from bsale_tools import consultar_stock_bsale, generar_cotizacion_pdf
 
 def get_chat_session(phone_number: str):
@@ -71,7 +71,7 @@ def get_chat_session(phone_number: str):
         model = genai.GenerativeModel(
             model_name='gemini-3.5-flash',
             system_instruction=SYSTEM_PROMPT,
-            tools=[update_notion_crm, consultar_stock_bsale, generar_cotizacion_pdf]
+            tools=[update_wacrm_lead, consultar_stock_bsale, generar_cotizacion_pdf]
         )
         chat = model.start_chat(enable_automatic_function_calling=True)
         active_chats[phone_number] = chat
