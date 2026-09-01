@@ -3,6 +3,7 @@ import os
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 from fastapi import FastAPI, Request, Response
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import whatsapp_api
 import agent
@@ -11,7 +12,19 @@ load_dotenv()
 
 app = FastAPI(title="TruckCenter WhatsApp Webhook")
 
+# Sirve los PDF de cotización generados en bsale_tools.py como archivos
+# públicos — wacrm necesita una URL pública para poder enviarlos como
+# documento adjunto por WhatsApp.
+QUOTES_DIR = os.path.join(os.path.dirname(__file__), "quotes")
+os.makedirs(QUOTES_DIR, exist_ok=True)
+app.mount("/quotes", StaticFiles(directory=QUOTES_DIR), name="quotes")
+
 WEBHOOK_VERIFY_TOKEN = os.getenv("WEBHOOK_VERIFY_TOKEN")
+# Secreto compartido que wacrm envía como "Authorization: Bearer <secret>"
+# al llamar a POST /api/chat. Si se deja vacío, /api/chat queda sin
+# autenticación (solo aceptable para pruebas locales) — en producción
+# DEBE estar seteado, porque el endpoint queda expuesto a internet.
+WACRM_SHARED_SECRET = os.getenv("WACRM_SHARED_SECRET")
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
@@ -88,16 +101,21 @@ class ChatRequest(BaseModel):
     image_url: Optional[str] = None
 
 @app.post("/api/chat")
-async def wacrm_chat(request: ChatRequest):
+async def wacrm_chat(request: Request, body: ChatRequest):
     """
     Este endpoint convierte al Agente en un Microservicio.
     WACRM puede enviar una petición POST aquí y el Agente devolverá la respuesta inteligente.
     """
-    print(f"\n[WACRM SOLICITUD] De: {request.phone_number} | Texto: {request.message}")
-    
+    if WACRM_SHARED_SECRET:
+        auth_header = request.headers.get("authorization", "")
+        if auth_header != f"Bearer {WACRM_SHARED_SECRET}":
+            return Response(content="Unauthorized", status_code=401)
+
+    print(f"\n[WACRM SOLICITUD] De: {body.phone_number} | Texto: {body.message}")
+
     # Procesar con Gemini
-    bot_response = agent.process_message(request.phone_number, request.message)
-    
+    bot_response = agent.process_message(body.phone_number, body.message)
+
     return {"status": "success", "response": bot_response}
 
 if __name__ == "__main__":
