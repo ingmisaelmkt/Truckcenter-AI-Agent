@@ -1,0 +1,9 @@
+{
+  "services": {
+    "truckcenteragentia": {
+      "image": {
+        "dockerfile": "./Dockerfile"
+      }
+    }
+  }
+}
