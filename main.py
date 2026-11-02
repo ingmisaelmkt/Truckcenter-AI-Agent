@@ -2,7 +2,8 @@ import os
 # Fix para incompatibilidad de Google Protobuf con Python 3.14+
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
-from fastapi import FastAPI, Request, Response
+import hmac
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 from dotenv import load_dotenv
 import whatsapp_api
 import agent
@@ -87,12 +88,19 @@ class ChatRequest(BaseModel):
     message: str
     image_url: Optional[str] = None
 
+AGENT_SHARED_SECRET = os.getenv("AGENT_SHARED_SECRET")
+
 @app.post("/api/chat")
-async def wacrm_chat(request: ChatRequest):
+async def wacrm_chat(request: ChatRequest, authorization: Optional[str] = Header(default=None)):
     """
     Este endpoint convierte al Agente en un Microservicio.
     WACRM puede enviar una petición POST aquí y el Agente devolverá la respuesta inteligente.
     """
+    if not AGENT_SHARED_SECRET or not authorization or not hmac.compare_digest(
+        authorization, f"Bearer {AGENT_SHARED_SECRET}"
+    ):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
     print(f"\n[WACRM SOLICITUD] De: {request.phone_number} | Texto: {request.message}")
     
     # Procesar con Gemini
